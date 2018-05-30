@@ -1,0 +1,16 @@
+# Add a message
+POST http://localhost:8000/messages?id=1&message=bar
+# And another
+POST http://localhost:8000/messages?id=1&message=foo
+
+# Get all messages since we last read (try again to see an emtpy list)
+GET http://localhost:8000/messages?id=1
+
+# Get a range of messages
+GET http://localhost:8000/messages?id=1&start=0&stop=2
+
+# Delete some messages from the queue
+DELETE http://localhost:8000/messages?id=1&index=0&index=0&index=1
+
+# Get messages by range again (to see that they have been deleted)
+GET http://localhost:8000/messages?id=1&start=0&stop=-1
