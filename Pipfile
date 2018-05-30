@@ -8,6 +8,7 @@ falcon = "*"
 gunicorn = "*"
 redis = "*"
 colorlog = "*"
+msgpack = "*"
 
 [dev-packages]
 pylint = "*"

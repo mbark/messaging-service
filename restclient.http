@@ -1,16 +1,44 @@
-# Add a message
-POST http://localhost:8000/messages?id=1&message=bar
+:target = some_target@mail.com
+
+# Add a message with some arbitrary data
+POST http://localhost:8000/messages/:target
+Content-Type: application/json
+{
+        "jql": "project = HSP",
+        "startAt": 0,
+        "maxResults": 15,
+        "fields": [
+                "summary",
+                "status",
+                "assignee"
+        ]
+}
+
 # And another
-POST http://localhost:8000/messages?id=1&message=foo
+POST http://localhost:8000/messages/:target
+Content-Type: application/json
+{
+    "some-other-format": "hej"
+}
+
 
 # Get all messages since we last read (try again to see an emtpy list)
-GET http://localhost:8000/messages?id=1
+GET http://localhost:8000/messages/:target
 
 # Get a range of messages
-GET http://localhost:8000/messages?id=1&start=0&stop=2
+GET http://localhost:8000/messages/:target?start=0&stop=2
+
+# Get all messages in the queue
+GET http://localhost:8000/messages/:target?start=0
 
 # Delete some messages from the queue
-DELETE http://localhost:8000/messages?id=1&index=0&index=0&index=1
+DELETE http://localhost:8000/messages/:target
+[
+  {
+    "uuid": "702916ba-8b6c-49f2-ade0-3e6f6430736b",
+    "data": {
+      "some-other-format": "hej"
+    }
+  }
+]
 
-# Get messages by range again (to see that they have been deleted)
-GET http://localhost:8000/messages?id=1&start=0&stop=-1

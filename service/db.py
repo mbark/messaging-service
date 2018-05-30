@@ -1,4 +1,8 @@
 import redis
+import logging
+
+
+log = logging.getLogger('msgr')
 
 
 class DbClient():
@@ -11,9 +15,13 @@ class DbClient():
     def get(self, key, start, stop):
         return self.redis.lrange(key, start, stop)
 
-    def remove(self, key, index):
-        with self.redis.pipeline() as pipe:
-            pipe.lset(key, index, "DELETED").lrem(key, 1, "DELETED").execute()
+    def remove(self, key, elements):
+        pipe = self.redis.pipeline()
+        for el in elements:
+            log.debug("removing %s", el)
+            pipe.lrem(key, 0, el)
+
+        return pipe.execute()
 
     def since_last(self, key):
         pos_key = '%s-pos' % key
