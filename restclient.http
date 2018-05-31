@@ -35,7 +35,7 @@ GET http://localhost:8000/messages/:target?start=0
 DELETE http://localhost:8000/messages/:target
 [
   {
-    "uuid": "702916ba-8b6c-49f2-ade0-3e6f6430736b",
+    "uuid": "ff969bc8-2704-4dd7-9dd5-e1c7d61f6d51",
     "data": {
       "some-other-format": "hej"
     }

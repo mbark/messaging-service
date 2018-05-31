@@ -1,5 +1,6 @@
 import redis
 import logging
+import hashlib
 
 
 log = logging.getLogger('msgr')
@@ -10,43 +11,41 @@ class DbClient():
         self.redis = redis.StrictRedis(host='localhost', port=6379, db=0)
 
     def add(self, key, value):
-        return self.redis.rpush(key, value)
+        (unread, full) = self._keys(key)
+        pipe = self.redis.pipeline()
+        pipe.rpush(unread, value)
+        pipe.rpush(full, value)
+
+        return pipe.execute()
 
     def get(self, key, start, stop):
-        return self.redis.lrange(key, start, stop)
+        (_, full) = self._keys(key)
+        return self.redis.lrange(full, start, stop)
 
     def remove(self, key, elements):
+        (unread, full) = self._keys(key)
         pipe = self.redis.pipeline()
         for el in elements:
             log.debug("removing %s", el)
-            pipe.lrem(key, 0, el)
+            pipe.lrem(unread, 0, el)
+            pipe.lrem(full, 0, el)
 
         return pipe.execute()
 
     def since_last(self, key):
-        pos_key = '%s-pos' % key
-        messages = []
+        (unread, _) = self._keys(key)
 
-        with self.redis.pipeline() as pipe:
-            while 1:
-                try:
-                    pipe.watch(pos_key)
+        pipe = self.redis.pipeline()
+        pipe.lrange(unread, 0, -1)
+        pipe.delete(unread)
 
-                    position = pipe.get(pos_key)
-                    if position == None:
-                        position = 0
+        output = pipe.execute() 
+        return output[0]
 
-                    messages = pipe.lrange(key, position, -1)
-                    new_position = pipe.llen(key)
+    def _keys(self, key):
+        return (self._key(key, 'unread'), self._key(key, 'full'))
 
-                    pipe.multi()
-                    pipe.set(pos_key, new_position)
-                    pipe.execute()
-                    break
-                except redis.WatchError:
-                    # another client must have changed 'OUR-SEQUENCE-KEY' between
-                    # the time we started WATCHing it and the pipeline's execution.
-                    # our best bet is to just retry.
-                    continue
+    def _key(self, key, temperature):
+        name = '%s:%s' % (key, temperature)
+        return hashlib.sha512(name.encode('utf-8')).digest()
 
-        return messages
