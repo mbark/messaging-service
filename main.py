@@ -1,4 +1,4 @@
-from service.service import create
-from service.db import DbClient
+from msgr.app import create
+from msgr.db import DbClient
 
 app = create(DbClient())

@@ -4,8 +4,8 @@ import pytest
 import redis
 from falcon import testing
 
-from service.service import create
-from service.db import DbClient
+from msgr.app import create
+from msgr.db import DbClient
 
 
 def is_responsive(client):

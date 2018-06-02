@@ -5,7 +5,7 @@ import msgpack
 from falcon import testing
 
 from conftest import MockDb
-from service.service import create
+from msgr.app import create
 
 
 def test_post_adds_message_with_uuid(mocker):
