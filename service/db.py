@@ -7,8 +7,11 @@ log = logging.getLogger('msgr')
 
 
 class DbClient():
-    def __init__(self):
-        self.redis = redis.StrictRedis(host='localhost', port=6379, db=0)
+    def __init__(self, client=None):
+        if client == None:
+            self.redis = redis.StrictRedis(host='localhost', port=6379, db=0)
+        else:
+            self.redis = client
 
     def add(self, key, value):
         (unread, full) = self._keys(key)
@@ -39,7 +42,7 @@ class DbClient():
         pipe.lrange(unread, 0, -1)
         pipe.delete(unread)
 
-        output = pipe.execute() 
+        output = pipe.execute()
         return output[0]
 
     def _keys(self, key):
@@ -48,4 +51,3 @@ class DbClient():
     def _key(self, key, temperature):
         name = '%s:%s' % (key, temperature)
         return hashlib.sha512(name.encode('utf-8')).digest()
-

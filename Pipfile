@@ -9,10 +9,15 @@ gunicorn = "*"
 redis = "*"
 colorlog = "*"
 msgpack = "*"
+pytest-docker = "*"
 
 [dev-packages]
 pylint = "*"
 "autopep8" = "*"
+pytest = "*"
+pytest-docker = "*"
+pytest-mock = "*"
+pytest-cov = "*"
 
 [requires]
 python_version = "3.6"
