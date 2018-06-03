@@ -12,7 +12,7 @@ def post_msg(client, msg={'foo': 'bar'}):
 
 def test_get_with_no_messages(client):
     result = client.simulate_get('/messages/1')
-    assert result.json == []
+    assert json.loads(result.text) == []
 
 
 def test_post_creates_message(client):
@@ -51,7 +51,7 @@ def test_post_delete_get(client):
     assert len(response) == 0
 
 
-def test_get_since_last(client):
+def test_get_get_unread(client):
     endpoint, _ = post_msg(client)
 
     result1 = client.simulate_get(endpoint)
@@ -103,4 +103,10 @@ def test_remove_unread_message(client):
 
     assert result.status_code == 200
     assert len(response) == 1
-    assert response[0] == msg2
+    assert response[0] == msg2 
+
+def test_delete_no_messages(client):
+    result = client.simulate_delete('/messages/1', body=json.dumps([]))
+
+    assert result.status_code == 200
+    assert json.loads(result.text) == {'removed': 0}

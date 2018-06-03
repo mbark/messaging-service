@@ -30,7 +30,71 @@ $ curl http://localhost:8000/messages/some@queue.com
 []
 ```
 
-TODO: add a way to test visually via f.e. a CLI-app
+## Interactive testing via CLI
+There is a very simple CLI program called `cli_msgr` in the project that allows
+testing the program. Below is a short example of how the programs can be used.
+Do note though that since the `uuid`:s are generated randomly when doing a
+`DELETE` you need to copy your own output of the `POST`.
+
+### GET range
+Call `get_range` with two parameters: `start` and `end`. Do a `POST` first to
+have some messages to read.
+``` shell
+$ ./cli_msgr get_range 0 1
+HTTP/1.1 200 OK
+Server: gunicorn/19.8.1
+Date: Sun, 03 Jun 2018 13:22:22 GMT
+Connection: close
+content-type: application/json; charset=UTF-8
+content-length: 2
+
+[]
+```
+
+### GET unread
+Call `get_unread` without any parameters. Do a `POST` first to have some
+messages to read.
+``` shell
+$ ./cli_msgr get_unread
+HTTP/1.1 200 OK
+Server: gunicorn/19.8.1
+Date: Sun, 03 Jun 2018 13:22:50 GMT
+Connection: close
+content-type: application/json; charset=UTF-8
+content-length: 2
+
+[]
+```
+
+### POST
+Call `post` with one parameter, which should be a valid `JSON` object.
+``` shell
+$ ./cli_msgr post '{"foo":"bar"}'
+HTTP/1.1 201 Created
+Server: gunicorn/19.8.1
+Date: Sun, 03 Jun 2018 13:23:37 GMT
+Connection: close
+content-type: application/json; charset=UTF-8
+content-length: 72
+
+{"uuid": "6835d064-f8ae-414b-9caa-7e63b826d7ca", "data": {"foo": "bar"}}
+```
+
+### DELETE
+Call `delete` with one parameter which should be a list of previously saved
+messages; call `POST` and copy the returned message from there and wrap it in
+quotes.
+``` shell
+$ ./cli_msgr delete '[{"uuid": "6835d064-f8ae-414b-9caa-7e63b826d7ca", "data": {"foo": "bar"}}]'
+HTTP/1.1 200 OK
+Server: gunicorn/19.8.1
+Date: Sun, 03 Jun 2018 13:27:14 GMT
+Connection: close
+content-type: application/json; charset=UTF-8
+content-length: 14
+
+{"removed": 1}
+```
 
 ## API
 All messages are assumed to be valid `json` and all responses will be `json`.

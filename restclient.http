@@ -33,12 +33,6 @@ GET http://localhost:8000/messages/:target?start=0
 
 # Delete some messages from the queue
 DELETE http://localhost:8000/messages/:target
-[
-  {
-    "uuid": "ff969bc8-2704-4dd7-9dd5-e1c7d61f6d51",
-    "data": {
-      "some-other-format": "hej"
-    }
-  }
-]
+Content-Type: application/json
+[{"uuid": "ff969bc8-2704-4dd7-9dd5-e1c7d61f6d51", "data": {"some-other-format": "hej"}}]
 

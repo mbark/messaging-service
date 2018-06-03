@@ -1,86 +1,85 @@
-import falcon
 import logging
-import colorlog
 import uuid
-import json
 import msgpack
+import falcon
 
 from .db import DbClient
 
 log = logging.getLogger('msgr')
 
-handler = colorlog.StreamHandler()
-formatter = colorlog.ColoredFormatter(
-    fmt=('%(log_color)s[%(asctime)s %(levelname)8s] --'
-         ' %(message)s (%(filename)s:%(lineno)s)'),
-    datefmt='%Y-%m-%d %H:%M:%S')
-handler.setFormatter(formatter)
 
-log.addHandler(handler)
-log.setLevel(logging.DEBUG)
-
-
-"""A resource representing a message queue"""
 class MessageResource(object):
+    """A resource representing message queues that are identified by a given key."""
+
     def __init__(self, redis_client):
         self.redis = redis_client
 
-    def on_get(self, req, resp, id):
-        """Get all messages for the given id"""
+    def on_get(self, req, resp, key):
+        """Get either a range of messages or the last unread messages."""
         start = req.get_param_as_int('start')
         end = req.get_param_as_int('end')
 
+        messages = self._get_messages(key, start, end) 
+        resp.status = falcon.HTTP_200
+        resp.media = self._unpack_all(messages)
+
+    def on_post(self, req, resp, key):
+        """Push a new message to the queue."""
+        msg = {'uuid': str(uuid.uuid4()), 'data': req.media}
+        success = self.redis.add(key, self._pack(msg))
+
+        if success:
+            log.debug('added: %s [key: %s]' % (msg, key))
+            resp.status = falcon.HTTP_201
+            resp.media = msg
+        else:
+            log.debug('failed to add: %s [key: %s]' % (msg, key))
+            resp.status = falcon.HTTP_500
+
+    def on_delete(self, req, resp, key):
+        """Delete the given messages from the queue."""
+        messages = req.media
+
+        log.debug('removing messages: %s [key: %s]' % (messages, key))
+        removed = self.redis.remove(key, self._pack_all(messages))
+        log.debug("removed %s messages [key: %s]" % (removed, key))
+
+        remove_count = 0 if len(removed) == 0 else max(removed)
+
+        resp.status = falcon.HTTP_200
+        resp.media = {'removed': remove_count}
+
+    def _get_messages(self, key, start, end):
         messages = []
         if start != None:
             if end == None:
                 log.debug("start without end, assuming end=-1")
                 end = -1
 
-            log.debug('fetching message range [id: %s, start: %s, end: %s]' % (
-                id, start, end))
-            messages = self.redis.get(id, start, end)
+            log.debug('fetching messages in range [%d, %d] [key: %s]' % (
+                start, end, key))
+            messages = self.redis.get_range(key, start, end)
         else:
-            log.debug('fetching messages since last read [id: %s]' % id)
-            messages = self.redis.since_last(id)
+            log.debug('fetching unread [key: %s]' % key)
+            messages = self.redis.get_unread(key)
 
-        messages = [msgpack.unpackb(msg, raw=False) for msg in messages]
-        log.info("messages: %s", messages)
-        resp.status = falcon.HTTP_200
-        resp.body = json.dumps(messages)
+        return messages
 
-    def on_post(self, req, resp, id):
-        """Push a new message to the given id"""
-        body = req.stream.read(req.content_length or 0).decode('utf-8')
-        data = json.loads(body)
-        msg = {'uuid': str(uuid.uuid4()), 'data': data}
-        success = self.redis.add(id, msgpack.packb(msg, use_bin_type=True))
+    def _pack(self, message):
+        return msgpack.packb(message, use_bin_type=True)
 
-        if success:
-            log.debug('added to list [id: %s, message: %s]' % (id, data))
-            resp.status = falcon.HTTP_201
-            resp.body = json.dumps(msg)
-        else:
-            log.debug('failed to add [id: %s, message: %s]' % (id, data))
-            resp.status = falcon.HTTP_500
+    def _pack_all(self, messages):
+        return [self._pack(msg) for msg in messages] 
 
-    def on_delete(self, req, resp, id):
-        """Delete the given messages from the queue identified by the id"""
-        body = req.stream.read(req.content_length or 0).decode('utf-8')
-        data = json.loads(body)
-        messages = [msgpack.packb(msg, use_bin_type=True) for msg in data]
-
-        log.debug('removing messages: %s [id: %s]' % (data, id))
-        removed = self.redis.remove(id, messages)
-        log.info("removed %s messages [id: %s]" % (removed, id))
-
-        resp.status = falcon.HTTP_200
-        resp.body = json.dumps({ 'removed': max(removed) })
+    def _unpack_all(self, messages):
+        return [msgpack.unpackb(msg, raw=False) for msg in messages]
 
 
-def create(redis_client): 
-    """Create a falcon app using the given redis_client"""
+def create(redis_client):
+    """Create a falcon app using the given redis_client""" 
     app = falcon.API()
+
     messages = MessageResource(redis_client)
-    app.add_route('/messages/{id}', messages)
+    app.add_route('/messages/{key}', messages)
 
     return app

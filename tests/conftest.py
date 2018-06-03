@@ -17,6 +17,7 @@ def is_responsive(client):
 
 @pytest.fixture(scope='session')
 def redis_client(docker_ip, docker_services):
+    """A fixture that starts a real redis instance via docker-compose."""
     client = redis.StrictRedis(host='localhost', port=6379, db=0)
     docker_services.wait_until_responsive(
         timeout=30.0, pause=0.1,
@@ -36,7 +37,7 @@ def docker_compose_file(pytestconfig):
 @pytest.fixture(scope='function')
 def client(redis_client, request):
     def cleanup():
-        """Remoe all keys from redis to ensure clean slate between tests"""
+        """Remove everything from redis to ensure a clean slate between tests."""
         redis_client.flushall()
 
     request.addfinalizer(cleanup)
@@ -50,11 +51,11 @@ class MockDb():
     def add(self, key, value):
         return True
 
-    def get(self, key, start, stop):
+    def get_range(self, key, start, stop):
+        return []
+
+    def get_unread(self, key):
         return []
 
     def remove(self, key, elements):
         return [0, 0]
-
-    def since_last(self, key):
-        return []

@@ -43,9 +43,21 @@ def mock_get(mocker, mockdb, method):
     return messages
 
 
-def test_since_last_returns_stored_messages(mocker):
+def test_get_with_no_messages(mocker):
     mockdb = MockDb()
-    messages = mock_get(mocker, mockdb, 'since_last')
+    mocker.patch.object(mockdb, 'get_unread')
+    client = testing.TestClient(create(mockdb))
+
+    result = client.simulate_get('/messages/1')
+
+    assert result.status_code == 200
+    print('text', result.text)
+    assert json.loads(result.text) == []
+
+
+def test_get_unread_returns_stored_messages(mocker):
+    mockdb = MockDb()
+    messages = mock_get(mocker, mockdb, 'get_unread')
     client = testing.TestClient(create(mockdb))
 
     result = client.simulate_get('/messages/1')
@@ -56,7 +68,7 @@ def test_since_last_returns_stored_messages(mocker):
 
 def test_get_returns_stored_messages(mocker):
     mockdb = MockDb()
-    messages = mock_get(mocker, mockdb, 'get')
+    messages = mock_get(mocker, mockdb, 'get_range')
     client = testing.TestClient(create(mockdb))
 
     result = client.simulate_get(
@@ -68,7 +80,7 @@ def test_get_returns_stored_messages(mocker):
 
 def test_get_defaults_with_no_end(mocker):
     mockdb = MockDb()
-    spy = mocker.spy(mockdb, 'get')
+    spy = mocker.spy(mockdb, 'get_range')
     client = testing.TestClient(create(mockdb))
 
     client.simulate_get('/messages/1', params={'start': '0'})
@@ -105,3 +117,14 @@ def test_delete_packs_messages(mocker):
     assert id == '1'
     assert elements == [msgpack.packb(
         msg, use_bin_type=True) for msg in messages]
+
+def test_delete_no_messages(mocker):
+    mockdb = MockDb()
+    patch = mocker.patch.object(mockdb, 'remove')
+    patch.return_value = []
+    client = testing.TestClient(create(mockdb))
+
+    result = client.simulate_delete('/messages/1', body=json.dumps([]))
+
+    assert result.status_code == 200
+    assert json.loads(result.text) == {'removed': 0}
