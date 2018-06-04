@@ -2,43 +2,47 @@
 Messaging via REST.
 
 ## Structure
-- `msgr` contains the actual code:
+- `main.py` create the app;
+- `msgr`
   - `app.py` manages the REST-server;
   - `db.py` communicates with the database.
-- `tests` contains tests:
+- `tests`
   - `test_integration.py` starts a real redis instance to test integration;
   - `test_app.py` tests with a mocked database.
-- `docker-compose.yml` is used to start `redis` for tests and local development;
+- `docker-compose.yml` configuration for `redis` via `Docker`;
 - `restclient.http` can be used in `Emacs` with
   [`restclient.el`](https://github.com/pashky/restclient.el) for testing.
 
 ## Quick start
-Dependencies are managed with `pipenv`, if you don't have it see [their
-installation instructions](https://github.com/pypa/pipenv).
+Dependencies are managed with `pipenv`, if you don't have it installed see
+[their installation instructions](https://github.com/pypa/pipenv#installation).
 
-In one shell-session, start redis:
+Start redis:
 ``` shell
 $ docker-compose up
 ```
 
-Then in another start the application:
+And in another window start the application:
 ``` shell
 $ pipenv install --dev  # install all dependencies (including dev)
 $ pipenv shell          # activate a shell in the virtualenv
 $ gunicorn main:app     # start the application for local development
+# curl the service to verify it works
 $ curl http://localhost:8000/messages/some@queue.com
 []
 ```
 
-## Interactive testing via CLI
+## Testing via a simple CLI
 There is a very simple CLI program called `cli_msgr` in the project that allows
-testing the program. Below is a short example of how the programs can be used.
-Do note though that since the `uuid`:s are generated randomly when doing a
-`DELETE` you need to copy your own output of the `POST`.
+testing the app. Below is a short example of how the programs can be used. For
+more information on the API, [see below](#api).
+
+*NOTE:* since the `uuid`:s are generated randomly when doing a `DELETE` you need
+to copy your own output of the `POST`.
 
 ### GET range
-Call `get_range` with two parameters: `start` and `end`. Do a `POST` first to
-have some messages to read.
+Call `get_range` with two parameters: `start` and `end` to read a range of
+messages idenfitied by their indexes.
 ``` shell
 $ ./cli_msgr get_range 0 1
 HTTP/1.1 200 OK
@@ -52,8 +56,8 @@ content-length: 2
 ```
 
 ### GET unread
-Call `get_unread` without any parameters. Do a `POST` first to have some
-messages to read.
+Call `get_unread` without any parameters to get all messages since you last
+called `get_unread`.
 ``` shell
 $ ./cli_msgr get_unread
 HTTP/1.1 200 OK
@@ -82,8 +86,8 @@ content-length: 72
 
 ### DELETE
 Call `delete` with one parameter which should be a list of previously saved
-messages; call `POST` and copy the returned message from there and wrap it in
-quotes.
+messages. To create such a list: `POST`, copy the returned `json`, wrap it in an
+array (`[]`) and single quotes.
 ``` shell
 $ ./cli_msgr delete '[{"uuid": "6835d064-f8ae-414b-9caa-7e63b826d7ca", "data": {"foo": "bar"}}]'
 HTTP/1.1 200 OK
@@ -101,7 +105,8 @@ All messages are assumed to be valid `json` and all responses will be `json`.
 Messages are stored in the format: `{ "uuid": "UUID", "data": {} }` where `uuid`
 is generated for each new message and `data` contains the actual message.
 
-There are three endpoints `/message/{id}`
+There is one endpoint: `/message/{id}`, which can be managed via `GET`, `POST`
+and `DELETE`:
 - `GET`: can be used in three ways:
     - with the query parameter `start` which indicates the index from where to
     return all messages till the end;
@@ -113,7 +118,7 @@ There are three endpoints `/message/{id}`
   stored message with `uuid` and all).
 
 ## Testing
-`pytest` is used to run tests. All tests can be found in the `test` directory.
+`pytest` is used to run tests. All tests can be found in the `tests` directory.
 
 - `python -m pytest` run all tests;
 - `python -m pytest --cov=msgr` run all tests and show coverage;
@@ -125,25 +130,19 @@ There are three endpoints `/message/{id}`
 ## Design choices
 A brief overview of some design choices and motivation.
 
-### REST-server
-The server is written using `Falcon`, mostly because of potential speed gains in
-the future but also the simple `API` to get started with.
-
 ### Database
-Redis is used as the backing database to provide high efficieny while also
-performing all operations atomically to manage concurency. The messages are
-stored in a simple list which means that accessing the oldest and most recent
-messages is essentially `O(1)`.
+Redis is used as the database to store messages. This allows high performance in
+terms of pushing new messages and reading messages that are fairly recent. It
+is also if necessary capable of clustering.
 
 ### Storing messages
 Messages are converted to `msgpack` internally to provide more efficient
-storage. As all messages stored are JSON this also means everything can be
-compacted down.
+storage, especially so since all messages are `json` themselves.
 
 New messages are stored in two lists: `full` and `unread`, where `full` contains
 all message over time and `unread` is just the messages since we last read. When
 performing a `remove` this means the value is removed from both lists.
 
-Having the messages be stored in two places should not be very inefficient given
-that they are stored in a compact manner (via `msgpack`) and if the `unread`
-list is cleaned fairly often.
+Storing the messages in two lists means that data is stored twice, which should
+however not be a problem given that messages are stored in a compact fashion
+thanks to `msgpack` and the `unread` list should be cleared fairly often.
