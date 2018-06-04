@@ -27,7 +27,10 @@ And in another window start the application:
 $ pipenv install --dev  # install all dependencies (including dev)
 $ pipenv shell          # activate a shell in the virtualenv
 $ gunicorn main:app     # start the application for local development
-# curl the service to verify it works
+```
+
+You should be able to curl to application:
+``` shell
 $ curl http://localhost:8000/messages/some@queue.com
 []
 ```
@@ -42,7 +45,8 @@ to copy your own output of the `POST`.
 
 ### GET range
 Call `get_range` with two parameters: `start` and `end` to read a range of
-messages idenfitied by their indexes.
+messages idenfitied by their indexes. If you omit `end` or send `-1` you will
+read all messages from `start` till the end of the list.
 ``` shell
 $ ./cli_msgr get_range 0 1
 HTTP/1.1 200 OK
